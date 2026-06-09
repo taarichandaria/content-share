@@ -35,3 +35,12 @@ the app; the posts->profiles FK ambiguity below comes from it.)
   closes, the server blocks on stdout and wedges. Redirect to a file instead.
 - `supabase start` fails on colima with the analytics (vector) container's
   docker.sock mount — keep `[analytics] enabled = false` in `supabase/config.toml`.
+- `npm run db:types` truncates `lib/types/database.ts` via shell redirect even
+  when generation fails (the CLI's helper containers are OOM-prone on this 6GB
+  colima VM). Generate to a temp file and copy on success, or `git checkout`
+  the file after a failure.
+- If the CLI's container-based `test db` is unusable, pgTAP tests run fine via
+  psql in a throwaway `supabase/postgres` container — but the bare image ships
+  the legacy `auth.uid()` (reads `request.jwt.claim.sub`); redefine it as
+  `supabase_admin` to also read `request.jwt.claims`, and expect the storage.*
+  statements in migrations to fail (no storage-api service).
