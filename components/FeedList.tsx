@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getFeed, type FeedPage } from "@/lib/queries/posts";
 import type { FeedPost } from "@/lib/types/models";
@@ -23,11 +23,14 @@ export function FeedList({
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
 
-  // Server refreshes (after composing, deleting elsewhere) replace the list.
-  useEffect(() => {
+  // Server refreshes (after composing, deleting elsewhere) replace the list;
+  // adjust state during render instead of via an effect.
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
     setPosts(initial.posts);
     setCursor(initial.nextCursor);
-  }, [initial]);
+  }
 
   async function loadMore() {
     if (!cursor) return;

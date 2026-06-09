@@ -66,11 +66,10 @@ export function FriendsTabs({
     (e) => e.friendship.status === "pending" && !e.incoming
   );
 
+  const searchActive = query.trim().length >= 2;
+
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
-    }
+    if (!searchActive) return;
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
@@ -80,7 +79,10 @@ export function FriendsTabs({
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [query, meId]);
+  }, [query, meId, searchActive]);
+
+  // Derived at render so stale results vanish when the query is cleared.
+  const visibleResults = searchActive ? results : [];
 
   const tabs: Array<{ id: Tab; label: string; count?: number }> = [
     { id: "friends", label: "Friends", count: friends.length },
@@ -179,10 +181,10 @@ export function FriendsTabs({
             )}
           </div>
           <ul className="divide-y divide-line/60 mt-2">
-            {results.map((p) => (
+            {visibleResults.map((p) => (
               <PersonRow key={p.id} person={p} meId={meId} entryMap={entryMap} />
             ))}
-            {query.trim().length >= 2 && !searching && results.length === 0 && (
+            {searchActive && !searching && visibleResults.length === 0 && (
               <p className="text-sm text-ink-faint py-3">
                 Nobody by that name yet.
               </p>
