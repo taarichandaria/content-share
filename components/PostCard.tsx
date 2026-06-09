@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import type { FeedPost, PostDetail } from "@/lib/types/models";
 import { createClient } from "@/lib/supabase/client";
 import { deletePost } from "@/lib/queries/posts";
+import { savePost, unsavePost } from "@/lib/queries/saves";
 import { Avatar } from "@/components/Avatar";
 import { ContentCard } from "@/components/ContentCard";
 import { TimeAgo } from "@/components/TimeAgo";
-import { CommentIcon } from "@/components/icons";
+import { cn } from "@/components/ui";
+import { BookmarkIcon, CommentIcon } from "@/components/icons";
 
 function commentCount(post: FeedPost | PostDetail): number {
   const c = post.comments as unknown as Array<{ count?: number }>;
@@ -31,7 +33,20 @@ export function PostCard({
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saved, setSaved] = useState(post.saves.length > 0);
   const mine = post.author_id === currentUserId;
+
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next);
+    try {
+      const args = { postId: post.id, userId: currentUserId };
+      if (next) await savePost(createClient(), args);
+      else await unsavePost(createClient(), args);
+    } catch {
+      setSaved(!next);
+    }
+  }
 
   async function remove() {
     setDeleting(true);
@@ -105,6 +120,24 @@ export function PostCard({
             <span className="sr-only">comments</span>
           </Link>
         )}
+        <button
+          onClick={toggleSave}
+          aria-pressed={saved}
+          title={saved ? "Remove from saved" : "Save for later"}
+          className={cn(
+            "inline-flex items-center gap-1.5 text-sm transition-colors cursor-pointer",
+            saved ? "text-gold" : "text-ink-faint hover:text-ink"
+          )}
+        >
+          <BookmarkIcon
+            width={16}
+            height={16}
+            fill={saved ? "currentColor" : "none"}
+          />
+          <span className="sr-only">
+            {saved ? "remove from saved" : "save"}
+          </span>
+        </button>
         {mine && (
           <span className="ml-auto text-xs">
             {confirming ? (

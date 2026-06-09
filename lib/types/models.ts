@@ -6,6 +6,7 @@ export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
 export type Read = Database["public"]["Tables"]["reads"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type Comment = Database["public"]["Tables"]["comments"]["Row"];
+export type Save = Database["public"]["Tables"]["saves"]["Row"];
 export type ContentType = Database["public"]["Enums"]["content_type"];
 export type ReadStatus = Database["public"]["Enums"]["read_status"];
 
@@ -20,6 +21,8 @@ export interface FeedPost extends Post {
   author: AuthorSummary;
   read: Pick<Read, "id" | "status"> | null;
   comments: { count: number }[];
+  /** Saves RLS is private-to-saver, so this holds at most the viewer's row. */
+  saves: Pick<Save, "user_id">[];
 }
 
 export interface CommentWithAuthor extends Comment {
@@ -32,6 +35,16 @@ export interface PostDetail extends Post {
   author: AuthorSummary;
   read: Pick<Read, "id" | "status"> | null;
   comments: CommentWithAuthor[];
+  /** Saves RLS is private-to-saver, so this holds at most the viewer's row. */
+  saves: Pick<Save, "user_id">[];
+}
+
+/** A saved bookmark with the recommending post embedded. */
+export interface SavedPost extends Save {
+  post: Pick<Post, "id" | "body" | "created_at"> & {
+    author: AuthorSummary;
+    content_item: ContentItem;
+  };
 }
 
 export interface ReadWithItem extends Read {

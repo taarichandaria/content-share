@@ -15,7 +15,8 @@ const FEED_SELECT = `
   content_item:content_items(*),
   author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url),
   read:reads(id, status),
-  comments(count)
+  comments(count),
+  saves(user_id)
 `;
 
 const DETAIL_SELECT = `
@@ -23,7 +24,8 @@ const DETAIL_SELECT = `
   content_item:content_items(*),
   author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url),
   read:reads(id, status),
-  comments(*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url))
+  comments(*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url)),
+  saves(user_id)
 `;
 
 export interface FeedPage {

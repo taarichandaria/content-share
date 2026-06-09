@@ -61,6 +61,14 @@ export function GearIcon(props: IconProps) {
   );
 }
 
+export function BookmarkIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 4.5h10a.5.5 0 0 1 .5.5v15l-5.5-3.7L6.5 20V5a.5.5 0 0 1 .5-.5Z" />
+    </svg>
+  );
+}
+
 export function CommentIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

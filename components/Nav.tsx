@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { cn } from "@/components/ui";
 import {
   BookIcon,
+  BookmarkIcon,
   FeedIcon,
   FriendsIcon,
   GearIcon,
@@ -22,6 +23,7 @@ function navItems(profile: AuthorSummary) {
   return [
     { href: "/", label: "Feed", icon: FeedIcon },
     { href: "/reading", label: "Reading", icon: BookIcon },
+    { href: "/saved", label: "Saved", icon: BookmarkIcon },
     { href: "/friends", label: "Friends", icon: FriendsIcon, badge: true },
     {
       href: `/u/${profile.username}`,
