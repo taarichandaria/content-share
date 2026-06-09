@@ -8,7 +8,7 @@ export default function AuthLayout({
       <header className="mb-10 text-center">
         <p className="smallcaps text-ink-faint mb-3">est. tonight, among friends</p>
         <h1 className="font-display text-5xl sm:text-6xl font-semibold tracking-tight">
-          Commonplace
+          Forum
         </h1>
         <p className="commentary italic text-ink-soft mt-4 max-w-sm mx-auto">
           A shared notebook of everything you&rsquo;re reading, watching, and

@@ -55,7 +55,7 @@ export function Nav({ profile, pendingCount }: NavProps) {
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-line px-6 py-8 z-40">
         <Link href="/" className="block mb-10">
           <span className="font-display text-[1.7rem] font-semibold tracking-tight">
-            Commonplace
+            Forum
           </span>
           <span className="block smallcaps text-ink-faint mt-1">
             among friends
@@ -103,7 +103,7 @@ export function Nav({ profile, pendingCount }: NavProps) {
       {/* Mobile top masthead */}
       <header className="lg:hidden sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-sm px-4 py-3 text-center">
         <Link href="/" className="font-display text-xl font-semibold tracking-tight">
-          Commonplace
+          Forum
         </Link>
       </header>
 

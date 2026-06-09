@@ -4,7 +4,7 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Commonplace (content-share)
+# Forum (content-share)
 
 Friends-only content sharing: posts with commentary about content items
 (articles/podcasts/videos/books/anything), margin-note comments, ongoing

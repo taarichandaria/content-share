@@ -1,6 +1,6 @@
-# Commonplace
+# Forum
 
-A friends-only content-sharing app — a shared commonplace book of everything you and
+A friends-only content-sharing app — a shared record of everything you and
 your friends are reading, watching, and listening to. Share articles, podcasts,
 videos, tweets, books, films, recipes, or anything else with your own commentary;
 friends leave "margin notes" (comments). Books are ongoing reads: start

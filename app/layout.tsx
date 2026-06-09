@@ -15,9 +15,9 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Commonplace",
+  title: "Forum",
   description:
-    "A shared commonplace book — what you and your friends are reading, watching, and listening to.",
+    "What you and your friends are reading, watching, and listening to.",
 };
 
 export default function RootLayout({
