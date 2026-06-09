@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-paper: #f6f1e7;
+  --color-paper-deep: #ede5d3;
+  --color-card: #fbf8f1;
+  --color-ink: #221c14;
+  --color-ink-soft: #5e5546;
+  --color-ink-faint: #948a77;
+  --color-line: #d8cdb8;
+  --color-accent: #8c2f1b;
+  --color-accent-deep: #6e2413;
+  --color-accent-soft: #f1e1d7;
+  --color-moss: #5a6b3b;
+  --color-moss-soft: #e7eadb;
+  --color-gold: #a87f35;
+  --color-gold-soft: #f2e8d2;
+  --color-sky: #44617b;
+  --color-sky-soft: #e0e7ec;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-hanken), "Avenir Next", "Segoe UI", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-paper);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Print-grain overlay across the whole page */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Editorial small-caps label, used for chips / nav / section heads */
+.smallcaps {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Commentary body — the voice of the app */
+.commentary {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  font-variation-settings: "SOFT" 60, "WONK" 0;
+}
+
+/* Staggered feed reveal */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in {
+    animation: none;
+  }
+}
+
+/* Hairline rule with centered ornament, between feed posts */
+.fleuron-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-ink-faint);
+}
+.fleuron-rule::before,
+.fleuron-rule::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--color-line);
 }

@@ -3,3 +3,33 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+# Commonplace (content-share)
+
+Friends-only content sharing: posts with commentary about content items
+(articles/podcasts/videos/books/anything), margin-note comments, likes, ongoing
+book reads with progress posts. See README.md for setup and architecture.
+
+## Rules
+
+- RLS is the authorization layer. Any new table needs policies in a migration AND
+  pgTAP coverage in `supabase/tests/` (`npm run test:db` must pass).
+- Schema changes: new file in `supabase/migrations/` (never edit applied ones),
+  `supabase db reset`, then `npm run db:types` to regenerate `lib/types/database.ts`.
+- All data access lives in `lib/queries/*.ts` as functions taking a
+  `SupabaseClient` — keeps the data layer portable to a future React Native app.
+  No inline queries in components.
+- Friendships: one canonical row per pair (`user_a < user_b`). Always use
+  `canonicalPair()` from `lib/queries/friends.ts`.
+- PostgREST embeds of `posts -> profiles` must name the FK
+  (`profiles!posts_author_id_fkey`) — two relationship paths exist (author, likes).
+- Next 16: root request handler is `proxy.ts` (not `middleware.ts`).
+- Dev server, Supabase local stack (Docker via colima), and seed users
+  (alice/bob/carol @ password123) — see README commands.
+
+## Learnings
+
+- Don't pipe long-running dev servers through `head`/`tail` — when the pipe
+  closes, the server blocks on stdout and wedges. Redirect to a file instead.
+- `supabase start` fails on colima with the analytics (vector) container's
+  docker.sock mount — keep `[analytics] enabled = false` in `supabase/config.toml`.
