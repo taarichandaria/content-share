@@ -7,8 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Commonplace (content-share)
 
 Friends-only content sharing: posts with commentary about content items
-(articles/podcasts/videos/books/anything), margin-note comments, likes, ongoing
+(articles/podcasts/videos/books/anything), margin-note comments, ongoing
 book reads with progress posts. See README.md for setup and architecture.
+(A `likes` table exists in the schema but the like feature was removed from
+the app; the posts->profiles FK ambiguity below comes from it.)
 
 ## Rules
 

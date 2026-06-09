@@ -19,7 +19,6 @@ export interface FeedPost extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
   read: Pick<Read, "id" | "status"> | null;
-  likes: { user_id: string }[];
   comments: { count: number }[];
 }
 
@@ -32,7 +31,6 @@ export interface PostDetail extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
   read: Pick<Read, "id" | "status"> | null;
-  likes: { user_id: string }[];
   comments: CommentWithAuthor[];
 }
 

@@ -3,7 +3,7 @@
 A friends-only content-sharing app — a shared commonplace book of everything you and
 your friends are reading, watching, and listening to. Share articles, podcasts,
 videos, tweets, books, films, recipes, or anything else with your own commentary;
-friends leave "margin notes" (comments) and likes. Books are ongoing reads: start
+friends leave "margin notes" (comments). Books are ongoing reads: start
 one, post progress updates as you go, then mark it finished.
 
 Built with Next.js (App Router) + Supabase. The feed only ever shows posts from
@@ -58,8 +58,9 @@ reading The Power Broker with progress posts.
   is denormalized onto every post so the feed is a single uniform query (a DB
   trigger keeps it consistent with the read).
 - Visibility: a post/read/content item is visible to its owner and accepted
-  friends only (`are_friends()` security-definer function). Comments and likes
-  piggyback on post visibility via invoker-rights `EXISTS` subqueries.
+  friends only (`are_friends()` security-definer function). Comments piggyback
+  on post visibility via an invoker-rights `EXISTS` subquery. (A `likes` table
+  exists in the schema with the same pattern but is currently unused by the UI.)
 
 ## Deploying
 

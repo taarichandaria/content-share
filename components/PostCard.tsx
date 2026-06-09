@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/client";
 import { deletePost } from "@/lib/queries/posts";
 import { Avatar } from "@/components/Avatar";
 import { ContentCard } from "@/components/ContentCard";
-import { LikeButton } from "@/components/LikeButton";
 import { TimeAgo } from "@/components/TimeAgo";
 import { CommentIcon } from "@/components/icons";
 
@@ -33,7 +32,6 @@ export function PostCard({
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const mine = post.author_id === currentUserId;
-  const liked = post.likes.some((l) => l.user_id === currentUserId);
 
   async function remove() {
     setDeleting(true);
@@ -88,12 +86,6 @@ export function PostCard({
       </div>
 
       <footer className="mt-3.5 flex items-center gap-5">
-        <LikeButton
-          postId={post.id}
-          userId={currentUserId}
-          initialLiked={liked}
-          initialCount={post.likes.length}
-        />
         {detail ? (
           <span className="inline-flex items-center gap-1.5 text-sm text-ink-faint">
             <CommentIcon width={16} height={16} />

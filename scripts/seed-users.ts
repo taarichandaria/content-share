@@ -1,6 +1,6 @@
 /**
  * Seeds local dev data: three users (alice, bob, carol — password
- * "password123"), a friendship graph, sample posts, comments, likes, and an
+ * "password123"), a friendship graph, sample posts, comments, and an
  * in-progress book read with progress posts.
  *
  * Run: npm run seed   (requires `supabase start` to be running)
@@ -97,7 +97,7 @@ async function main() {
     "This completely changed how I think about my mornings. The bit about attention as a finite resource is worth the whole read."
   );
 
-  const bobPost = await share(
+  await share(
     bob,
     {
       type: "video",
@@ -136,18 +136,11 @@ async function main() {
     "Short but sharp — the 'do fewer things' section is the whole argument."
   );
 
-  // Comments + likes on alice's post
+  // Comments on alice's post
   {
     const { error } = await admin.from("comments").insert([
       { post_id: alicePost, author_id: bob, body: "Adding this to my list — your take on attention sold me." },
       { post_id: alicePost, author_id: alice, body: "Report back when you read it!" },
-    ]);
-    if (error) throw error;
-  }
-  {
-    const { error } = await admin.from("likes").insert([
-      { post_id: alicePost, user_id: bob },
-      { post_id: bobPost, user_id: alice },
     ]);
     if (error) throw error;
   }

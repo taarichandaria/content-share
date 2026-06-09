@@ -61,14 +61,6 @@ export function GearIcon(props: IconProps) {
   );
 }
 
-export function AsteriskIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path d="M12 4v16M5.1 8l13.8 8M18.9 8 5.1 16" />
-    </svg>
-  );
-}
-
 export function CommentIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
