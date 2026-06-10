@@ -9,13 +9,16 @@ import type {
 type DB = SupabaseClient<Database>;
 
 export const FEED_PAGE_SIZE = 20;
+/** How many recent comments each feed row embeds for the peek board. */
+export const PEEK_COMMENTS = 3;
 
 const FEED_SELECT = `
   *,
   content_item:content_items(*),
   author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url),
   read:reads(id, status),
-  comments(count)
+  comments(count),
+  recent_comments:comments(id, body, created_at, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url))
 `;
 
 const DETAIL_SELECT = `
@@ -56,7 +59,9 @@ export async function getFeed(
     .select(FEED_SELECT)
     .in("author_id", authorIds)
     .order("created_at", { ascending: false })
-    .limit(FEED_PAGE_SIZE);
+    .order("created_at", { referencedTable: "recent_comments", ascending: false })
+    .limit(FEED_PAGE_SIZE)
+    .limit(PEEK_COMMENTS, { referencedTable: "recent_comments" });
   if (opts.before) query = query.lt("created_at", opts.before);
 
   const { data, error } = await query;
