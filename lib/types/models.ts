@@ -19,7 +19,6 @@ export type AuthorSummary = Pick<
 export interface FeedPost extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
-  read: Pick<Read, "id" | "status"> | null;
   comments: { count: number }[];
   /** Saves RLS is private-to-saver, so this holds at most the viewer's row. */
   saves: Pick<Save, "user_id">[];
@@ -33,7 +32,6 @@ export interface CommentWithAuthor extends Comment {
 export interface PostDetail extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
-  read: Pick<Read, "id" | "status"> | null;
   comments: CommentWithAuthor[];
   /** Saves RLS is private-to-saver, so this holds at most the viewer's row. */
   saves: Pick<Save, "user_id">[];
