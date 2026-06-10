@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { deletePost } from "@/lib/queries/posts";
 import { savePost, unsavePost } from "@/lib/queries/saves";
 import { Avatar } from "@/components/Avatar";
+import { CommentPeek } from "@/components/CommentPeek";
 import { ContentCard } from "@/components/ContentCard";
 import { TimeAgo } from "@/components/TimeAgo";
 import { cn } from "@/components/ui";
@@ -96,6 +97,14 @@ export function PostCard({
       <div className="mt-3.5">
         <ContentCard item={post.content_item} />
       </div>
+
+      {!detail && "recent_comments" in post && (
+        <CommentPeek
+          postId={post.id}
+          comments={post.recent_comments}
+          total={commentCount(post)}
+        />
+      )}
 
       <footer className="mt-3.5 flex items-center gap-5">
         {detail ? (

@@ -15,13 +15,20 @@ export type AuthorSummary = Pick<
   "id" | "username" | "display_name" | "avatar_url"
 >;
 
-/** Feed/profile list shape: counts only, no comment bodies. */
+/** Trimmed comment embedded in feed rows for the at-a-glance peek board. */
+export type CommentPreview = Pick<Comment, "id" | "body" | "created_at"> & {
+  author: AuthorSummary;
+};
+
+/** Feed/profile list shape: total count plus a few recent comment previews. */
 export interface FeedPost extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
   comments: { count: number }[];
   /** Saves RLS is private-to-saver, so this holds at most the viewer's row. */
   saves: Pick<Save, "user_id">[];
+  /** Newest first, capped at PEEK_COMMENTS. */
+  recent_comments: CommentPreview[];
 }
 
 export interface CommentWithAuthor extends Comment {
