@@ -19,6 +19,7 @@ export interface UnfurlResult {
   description?: string;
   imageUrl?: string;
   siteName?: string;
+  creator?: string;
   suggestedType: ContentTypeSuggestion;
 }
 
@@ -128,6 +129,74 @@ export function parseUnfurl(html: string, finalUrl: string): UnfurlResult {
   };
 }
 
+const YT_HOSTS = new Set(["youtube.com", "music.youtube.com", "youtube-nocookie.com"]);
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+/** Extract the video id from watch/shorts/embed/live/youtu.be URLs. */
+export function getYouTubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^(www|m)\./, "");
+    let candidate: string | null | undefined;
+    if (host === "youtu.be") {
+      candidate = u.pathname.split("/")[1];
+    } else if (YT_HOSTS.has(host)) {
+      candidate =
+        u.pathname === "/watch"
+          ? u.searchParams.get("v")
+          : u.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1];
+    }
+    return candidate && YT_ID_RE.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Every public video has this thumbnail, derivable without any fetch. */
+export function youtubeThumbnailUrl(videoId: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+/**
+ * YouTube serves scrapers a consent/bot page with no OG tags, so unfurl
+ * videos via the public oEmbed endpoint instead. Even when oEmbed fails
+ * (private/unlisted videos), the id-derived thumbnail still works.
+ */
+async function unfurlYouTube(url: string, videoId: string): Promise<UnfurlResult> {
+  const base: UnfurlResult = {
+    ok: false,
+    url,
+    imageUrl: youtubeThumbnailUrl(videoId),
+    siteName: "YouTube",
+    suggestedType: "video",
+  };
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+      {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        headers: { accept: "application/json" },
+      }
+    );
+    if (!res.ok) return base;
+    const data = (await res.json()) as {
+      title?: string;
+      author_name?: string;
+      thumbnail_url?: string;
+    };
+    if (!data.title) return base;
+    return {
+      ...base,
+      ok: true,
+      title: data.title,
+      creator: data.author_name,
+      imageUrl: data.thumbnail_url || base.imageUrl,
+    };
+  } catch {
+    return base;
+  }
+}
+
 const MAX_BODY_BYTES = 500_000;
 const FETCH_TIMEOUT_MS = 5_000;
 
@@ -146,6 +215,9 @@ export async function unfurl(url: string): Promise<UnfurlResult> {
     const parsed = new URL(url);
     if (!["http:", "https:"].includes(parsed.protocol)) return fallback;
     if (isPrivateHost(parsed.hostname)) return fallback;
+
+    const videoId = getYouTubeVideoId(url);
+    if (videoId) return unfurlYouTube(url, videoId);
 
     const res = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
