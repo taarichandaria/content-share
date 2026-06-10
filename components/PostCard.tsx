@@ -70,11 +70,8 @@ export function PostCard({
         </div>
         {post.read_id && (
           <span className="smallcaps shrink-0 rounded-full bg-gold-soft text-gold px-2.5 py-1 border border-gold/30">
-            {post.read?.status === "finished"
-              ? "Finished"
-              : post.progress
-                ? `Reading · ${post.progress}`
-                : "Reading"}
+            {/* Snapshot from the post row, not the read's live state. */}
+            {post.progress ? `Reading · ${post.progress}` : "Reading"}
           </span>
         )}
       </header>

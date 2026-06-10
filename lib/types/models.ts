@@ -18,7 +18,6 @@ export type AuthorSummary = Pick<
 export interface FeedPost extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
-  read: Pick<Read, "id" | "status"> | null;
   comments: { count: number }[];
 }
 
@@ -30,7 +29,6 @@ export interface CommentWithAuthor extends Comment {
 export interface PostDetail extends Post {
   content_item: ContentItem;
   author: AuthorSummary;
-  read: Pick<Read, "id" | "status"> | null;
   comments: CommentWithAuthor[];
 }
 

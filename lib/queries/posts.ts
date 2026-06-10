@@ -14,7 +14,6 @@ const FEED_SELECT = `
   *,
   content_item:content_items(*),
   author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url),
-  read:reads(id, status),
   comments(count)
 `;
 
@@ -22,7 +21,6 @@ const DETAIL_SELECT = `
   *,
   content_item:content_items(*),
   author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url),
-  read:reads(id, status),
   comments(*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url))
 `;
 
