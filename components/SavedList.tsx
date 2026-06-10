@@ -15,8 +15,6 @@ const SECTIONS: Array<{ type: ContentType; label: string }> = [
   { type: "paper", label: "Papers" },
   { type: "podcast", label: "Podcasts" },
   { type: "video", label: "Videos" },
-  { type: "movie", label: "Films" },
-  { type: "recipe", label: "Recipes" },
   { type: "tweet", label: "Posts" },
   { type: "other", label: "Links" },
 ];

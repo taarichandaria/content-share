@@ -44,3 +44,10 @@ the app; the posts->profiles FK ambiguity below comes from it.)
   the legacy `auth.uid()` (reads `request.jwt.claim.sub`); redefine it as
   `supabase_admin` to also read `request.jwt.claims`, and expect the storage.*
   statements in migrations to fail (no storage-api service).
+- Never `docker restart` a single supabase container (e.g. auth) — Kong caches
+  upstream DNS and starts returning 502s. Restart the whole stack instead; on
+  colima the health checks are flaky, so retry with
+  `supabase start --ignore-health-check` (storage/pg_meta aren't needed).
+- After `supabase db reset` + re-seed, browser sessions still hold tokens for
+  deleted user ids: proxy-refreshed pages render fine but API route handlers
+  401. Sign out/in (or clear cookies) before debugging "broken" API auth.

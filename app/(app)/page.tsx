@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getFeed } from "@/lib/queries/posts";
 import { getProfile } from "@/lib/queries/profiles";
+import { listCurrentReadsWithProgress } from "@/lib/queries/reads";
 import { Composer } from "@/components/Composer";
 import { FeedList } from "@/components/FeedList";
 
@@ -12,15 +13,16 @@ export default async function FeedPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profile, page] = await Promise.all([
+  const [profile, page, currentReads] = await Promise.all([
     getProfile(supabase, user.id),
     getFeed(supabase, user.id),
+    listCurrentReadsWithProgress(supabase, user.id),
   ]);
   if (!profile) redirect("/login");
 
   return (
     <div className="space-y-6">
-      <Composer profile={profile} />
+      <Composer profile={profile} currentReads={currentReads} />
       <FeedList initial={page} userId={user.id} />
     </div>
   );

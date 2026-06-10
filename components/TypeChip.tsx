@@ -9,8 +9,6 @@ const TYPE_STYLES: Record<ContentType, { dot: string; label: string }> = {
   tweet: { dot: "bg-sky", label: "Post" },
   book: { dot: "bg-gold", label: "Book" },
   paper: { dot: "bg-ink-soft", label: "Paper" },
-  movie: { dot: "bg-ink", label: "Film" },
-  recipe: { dot: "bg-moss", label: "Recipe" },
   other: { dot: "bg-ink-faint", label: "Link" },
 };
 

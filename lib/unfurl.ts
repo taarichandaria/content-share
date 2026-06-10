@@ -8,8 +8,6 @@ export type ContentTypeSuggestion =
   | "tweet"
   | "book"
   | "paper"
-  | "movie"
-  | "recipe"
   | "other";
 
 export interface UnfurlResult {
@@ -48,7 +46,6 @@ const HOST_TYPE_MAP: Array<[RegExp, ContentTypeSuggestion]> = [
   [/(^|\.)substack\.com$|(^|\.)medium\.com$/, "blog"],
   [/(^|\.)arxiv\.org$/, "paper"],
   [/(^|\.)goodreads\.com$/, "book"],
-  [/(^|\.)imdb\.com$|(^|\.)letterboxd\.com$/, "movie"],
 ];
 
 export function inferTypeFromUrl(url: string): ContentTypeSuggestion | null {
