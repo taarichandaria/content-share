@@ -71,7 +71,6 @@ describe("inferTypeFromUrl", () => {
     ["https://something.substack.com/p/post", "blog"],
     ["https://arxiv.org/abs/2401.00001", "paper"],
     ["https://www.goodreads.com/book/show/1", "book"],
-    ["https://letterboxd.com/film/x", "movie"],
   ])("%s -> %s", (url, expected) => {
     expect(inferTypeFromUrl(url)).toBe(expected);
   });

@@ -346,8 +346,6 @@ export type Database = {
         | "tweet"
         | "book"
         | "paper"
-        | "movie"
-        | "recipe"
         | "other"
       friendship_status: "pending" | "accepted"
       read_status: "reading" | "finished" | "abandoned"
@@ -489,8 +487,6 @@ export const Constants = {
         "tweet",
         "book",
         "paper",
-        "movie",
-        "recipe",
         "other",
       ],
       friendship_status: ["pending", "accepted"],

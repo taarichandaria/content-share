@@ -22,6 +22,36 @@ export async function listReads(
   return (data ?? []) as unknown as ReadWithItem[];
 }
 
+/** An active read decorated with the most recent recorded progress. */
+export interface CurrentRead extends ReadWithItem {
+  latest_progress: string | null;
+}
+
+/**
+ * Active reads plus where the reader left off ("p. 120, ch. 5") — drives
+ * the composer's continue-a-read shortcuts.
+ */
+export async function listCurrentReadsWithProgress(
+  db: DB,
+  userId: string
+): Promise<CurrentRead[]> {
+  const { data, error } = await db
+    .from("reads")
+    .select(`${READ_SELECT}, posts(progress, created_at)`)
+    .eq("user_id", userId)
+    .eq("status", "reading")
+    .order("created_at", { ascending: false })
+    .order("created_at", { referencedTable: "posts", ascending: false });
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as Array<
+    ReadWithItem & { posts: Array<{ progress: string | null; created_at: string }> }
+  >;
+  return rows.map(({ posts, ...read }) => ({
+    ...read,
+    latest_progress: posts.find((p) => p.progress)?.progress ?? null,
+  }));
+}
+
 export interface NewBook {
   title: string;
   creator: string | null;

@@ -18,7 +18,10 @@ values
   ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'carol@test.local', '{"username":"carol"}', '{}', now(), now());
 
 select is(
-  (select count(*)::int from profiles),
+  (select count(*)::int from profiles where id in (
+    '00000000-0000-0000-0000-00000000000a',
+    '00000000-0000-0000-0000-00000000000b',
+    '00000000-0000-0000-0000-00000000000c')),
   3,
   'signup trigger created a profile per auth user'
 );
