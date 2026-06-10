@@ -1,8 +1,8 @@
 import * as cheerio from "cheerio";
+import { searchBooks } from "./books";
 
 export type ContentTypeSuggestion =
   | "article"
-  | "blog"
   | "podcast"
   | "video"
   | "tweet"
@@ -43,7 +43,7 @@ const HOST_TYPE_MAP: Array<[RegExp, ContentTypeSuggestion]> = [
   [/(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)vimeo\.com$/, "video"],
   [/(^|\.)x\.com$|(^|\.)twitter\.com$/, "tweet"],
   [/(^|\.)open\.spotify\.com$|(^|\.)podcasts\.apple\.com$|(^|\.)overcast\.fm$|(^|\.)pca\.st$/, "podcast"],
-  [/(^|\.)substack\.com$|(^|\.)medium\.com$/, "blog"],
+  [/(^|\.)substack\.com$|(^|\.)medium\.com$/, "article"],
   [/(^|\.)arxiv\.org$/, "paper"],
   [/(^|\.)goodreads\.com$/, "book"],
 ];
@@ -70,6 +70,78 @@ function inferTypeFromOg(ogType: string | undefined): ContentTypeSuggestion | nu
   return null;
 }
 
+function nameFromJsonLdAuthor(author: unknown): string | undefined {
+  if (typeof author === "string") return author.trim() || undefined;
+  if (Array.isArray(author)) {
+    const names = author.map(nameFromJsonLdAuthor).filter(Boolean);
+    return names.length ? names.join(", ") : undefined;
+  }
+  if (author && typeof author === "object" && "name" in author) {
+    const name = (author as { name?: unknown }).name;
+    if (typeof name === "string") return name.trim() || undefined;
+  }
+  return undefined;
+}
+
+/** Many sites (esp. news) only expose the byline via JSON-LD. */
+function jsonLdCreator($: cheerio.CheerioAPI): string | undefined {
+  for (const el of $('script[type="application/ld+json"]').toArray()) {
+    try {
+      const data: unknown = JSON.parse($(el).text());
+      const nodes: unknown[] = Array.isArray(data)
+        ? data
+        : ((data as { "@graph"?: unknown[] })["@graph"] ?? [data]);
+      for (const node of nodes) {
+        const name = nameFromJsonLdAuthor(
+          (node as { author?: unknown })?.author
+        );
+        if (name) return name;
+      }
+    } catch {
+      // malformed block — keep looking
+    }
+  }
+  return undefined;
+}
+
+/** Academic pages (arXiv, ACM, Nature, …) list authors via Highwire citation tags. */
+function citationCreator($: cheerio.CheerioAPI): string | undefined {
+  const authors = $('meta[name="citation_author"]')
+    .toArray()
+    .map((el) => {
+      const name = $(el).attr("content")?.trim() ?? "";
+      // citation_author is conventionally "Last, First".
+      const m = name.match(/^([^,]+),\s*(.+)$/);
+      return m ? `${m[2]} ${m[1]}` : name;
+    })
+    .filter(Boolean);
+  if (authors.length === 0) return undefined;
+  return authors.length > 3 ? `${authors[0]} et al.` : authors.join(", ");
+}
+
+const SPOTIFY_DESC_LABELS = new Set([
+  "Episode",
+  "Song",
+  "Single",
+  "Album",
+  "Playlist",
+  "Podcast",
+]);
+
+/**
+ * Spotify pages don't expose the show/artist in any author field — it only
+ * appears in og:description boilerplate like "Invest Like the Best · Episode"
+ * or "Artist · Album · Song · 2015". Returns the leading name when the
+ * description matches that shape.
+ */
+export function spotifyCreatorFromDescription(
+  description: string
+): string | undefined {
+  const parts = description.split(" · ").map((p) => p.trim());
+  if (parts.length < 2) return undefined;
+  return parts.some((p) => SPOTIFY_DESC_LABELS.has(p)) ? parts[0] : undefined;
+}
+
 /** Parse HTML into unfurled metadata. Pure function — easy to unit test. */
 export function parseUnfurl(html: string, finalUrl: string): UnfurlResult {
   const $ = cheerio.load(html);
@@ -77,13 +149,17 @@ export function parseUnfurl(html: string, finalUrl: string): UnfurlResult {
   const meta = (selector: string) =>
     $(selector).attr("content")?.trim() || undefined;
 
+  // article:author is spec'd as a profile URL; only use it when it's a name.
+  const nonUrl = (value: string | undefined) =>
+    value && !/^https?:\/\//i.test(value) ? value : undefined;
+
   const title =
     meta('meta[property="og:title"]') ||
     meta('meta[name="twitter:title"]') ||
     $("title").first().text().trim() ||
     undefined;
 
-  const description =
+  let description =
     meta('meta[property="og:description"]') ||
     meta('meta[name="twitter:description"]') ||
     meta('meta[name="description"]');
@@ -99,6 +175,24 @@ export function parseUnfurl(html: string, finalUrl: string): UnfurlResult {
     } catch {
       imageUrl = undefined;
     }
+  }
+
+  let creator =
+    meta('meta[name="author"]') ||
+    citationCreator($) ||
+    nonUrl(meta('meta[property="article:author"]')) ||
+    jsonLdCreator($);
+
+  try {
+    if (/(^|\.)open\.spotify\.com$/.test(new URL(finalUrl).hostname) && description) {
+      const name = spotifyCreatorFromDescription(description);
+      if (name) {
+        creator ||= name;
+        description = undefined; // boilerplate, not a real description
+      }
+    }
+  } catch {
+    // unparseable finalUrl — skip the host-specific tweak
   }
 
   let siteName = meta('meta[property="og:site_name"]');
@@ -122,6 +216,7 @@ export function parseUnfurl(html: string, finalUrl: string): UnfurlResult {
     description,
     imageUrl,
     siteName,
+    creator,
     suggestedType,
   };
 }
@@ -194,6 +289,49 @@ async function unfurlYouTube(url: string, videoId: string): Promise<UnfurlResult
   }
 }
 
+/**
+ * Title query baked into a Goodreads book URL slug, e.g.
+ * /book/show/3735293-clean-code or /it/book/show/4671.The_Great_Gatsby.
+ */
+export function goodreadsBookQuery(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)goodreads\.com$/i.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/book\/show\/\d+[-.]([^/]+)/);
+    if (!m) return null;
+    const q = decodeURIComponent(m[1]).replace(/[-_.]+/g, " ").trim();
+    return q || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Goodreads sits behind an AWS WAF bot challenge that serves scrapers an
+ * empty 202, so when the page fetch yields nothing, resolve the book through
+ * Open Library search — the same source the composer's book autocomplete uses.
+ */
+async function unfurlGoodreads(
+  url: string,
+  titleQuery: string
+): Promise<UnfurlResult> {
+  const base: UnfurlResult = {
+    ok: false,
+    url,
+    siteName: "Goodreads",
+    suggestedType: "book",
+  };
+  const [book] = await searchBooks(titleQuery);
+  if (!book) return base;
+  return {
+    ...base,
+    ok: true,
+    title: book.title,
+    creator: book.author ?? undefined,
+    imageUrl: book.coverUrl ?? undefined,
+  };
+}
+
 const MAX_BODY_BYTES = 500_000;
 const FETCH_TIMEOUT_MS = 5_000;
 
@@ -202,6 +340,15 @@ const FETCH_TIMEOUT_MS = 5_000;
  * returns { ok: false } so the composer can fall back to manual entry.
  */
 export async function unfurl(url: string): Promise<UnfurlResult> {
+  const result = await unfurlGeneric(url);
+  if (!result.ok) {
+    const bookQuery = goodreadsBookQuery(url);
+    if (bookQuery) return unfurlGoodreads(url, bookQuery);
+  }
+  return result;
+}
+
+async function unfurlGeneric(url: string): Promise<UnfurlResult> {
   const fallback: UnfurlResult = {
     ok: false,
     url,

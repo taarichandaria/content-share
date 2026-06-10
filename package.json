@@ -13,6 +13,7 @@
     "db:types": "supabase gen types typescript --local > lib/types/database.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "cheerio": "^1.2.0",

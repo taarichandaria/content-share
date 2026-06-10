@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { enrichUnfurl } from "@/lib/enrich";
 import { unfurl } from "@/lib/unfurl";
 
 const BodySchema = z.object({
@@ -29,7 +30,8 @@ export async function POST(request: Request) {
   }
 
   // unfurl() never throws; failures come back as { ok: false } and the
-  // composer falls back to manual entry.
+  // composer falls back to manual entry. Enrichment is best-effort on top.
   const result = await unfurl(parsed.data.url);
-  return NextResponse.json(result);
+  const enriched = await enrichUnfurl(result);
+  return NextResponse.json(enriched);
 }

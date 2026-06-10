@@ -9,12 +9,12 @@ import type { ContentType, NewContentItem } from "@/lib/types/models";
 import type { UnfurlResult } from "@/lib/unfurl";
 import type { BookSuggestion } from "@/lib/books";
 import { Avatar } from "@/components/Avatar";
+import { TypeChip } from "@/components/TypeChip";
 import { Button, ErrorNote, Field, Input, Spinner, Textarea, cn } from "@/components/ui";
 import type { AuthorSummary } from "@/lib/types/models";
 
 const TYPES: Array<{ value: ContentType; label: string }> = [
   { value: "article", label: "Article" },
-  { value: "blog", label: "Blog" },
   { value: "podcast", label: "Podcast" },
   { value: "video", label: "Video" },
   { value: "tweet", label: "Post" },
@@ -22,6 +22,16 @@ const TYPES: Array<{ value: ContentType; label: string }> = [
   { value: "paper", label: "Paper" },
   { value: "other", label: "Other" },
 ];
+
+const CREATOR_LABELS: Record<ContentType, string> = {
+  article: "Author",
+  podcast: "Show / host",
+  video: "Channel / creator",
+  tweet: "Account",
+  book: "Author",
+  paper: "Author",
+  other: "Creator",
+};
 
 const URL_RE = /^https?:\/\/\S+\.\S+/;
 
@@ -78,6 +88,9 @@ export function Composer({
   const [url, setUrl] = useState("");
   const [fetching, setFetching] = useState(false);
   const [fetched, setFetched] = useState(false);
+  const [preview, setPreview] = useState<UnfurlResult | null>(null);
+  const [manualMode, setManualMode] = useState(false);
+  const [lookupFailed, setLookupFailed] = useState(false);
   const [type, setType] = useState<ContentType>("article");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string | null>(null);
@@ -118,22 +131,26 @@ export function Composer({
         });
         const data: UnfurlResult = await res.json();
         if (controller.signal.aborted) return;
-        setFetched(true);
-        setType(data.suggestedType);
         if (data.ok) {
-          skipSearchRef.current = true;
-          setTitle(data.title ?? "");
-          setDescription(data.description ?? null);
-          setImageUrl(data.imageUrl ?? null);
-          setSiteName(data.siteName ?? null);
-          if (data.creator) setCreator(data.creator);
-        } else if (data.imageUrl) {
-          // e.g. a YouTube video whose oEmbed lookup failed: the metadata is
-          // unknown but the id-derived thumbnail still works.
-          setImageUrl(data.imageUrl);
+          // Show the scraped card as a dropdown; fields fill on selection.
+          setPreview(data);
+          setLookupFailed(false);
+        } else {
+          // Nothing usable came back — open manual entry with what we have.
+          setType(data.suggestedType);
+          if (data.imageUrl) {
+            // e.g. a YouTube video whose oEmbed lookup failed: the metadata
+            // is unknown but the id-derived thumbnail still works.
+            setImageUrl(data.imageUrl);
+          }
+          setFetched(true);
+          setLookupFailed(true);
         }
       } catch {
-        if (!controller.signal.aborted) setFetched(true);
+        if (!controller.signal.aborted) {
+          setFetched(true);
+          setLookupFailed(true);
+        }
       } finally {
         if (!controller.signal.aborted) setFetching(false);
       }
@@ -217,6 +234,18 @@ export function Composer({
     bookQuery.length >= 2 &&
     optionCount > 0;
 
+  function applyPreview(data: UnfurlResult) {
+    skipSearchRef.current = true;
+    setType(data.suggestedType);
+    setTitle(data.title ?? "");
+    setDescription(data.description ?? null);
+    setImageUrl(data.imageUrl ?? null);
+    setSiteName(data.siteName ?? null);
+    if (data.creator) setCreator(data.creator);
+    setPreview(null);
+    setFetched(true);
+  }
+
   function pickSuggestion(s: BookSuggestion) {
     skipSearchRef.current = true;
     bookAbortRef.current?.abort();
@@ -272,6 +301,9 @@ export function Composer({
     setExpanded(false);
     setUrl("");
     setFetched(false);
+    setPreview(null);
+    setManualMode(false);
+    setLookupFailed(false);
     setType("article");
     setTitle("");
     setDescription(null);
@@ -367,7 +399,9 @@ export function Composer({
     );
   }
 
-  const showManualFields = fetched || !URL_RE.test(url);
+  // Link-first: the form opens with just the link box. Details appear once a
+  // scraped preview is accepted (or the user opts into manual entry).
+  const showManualFields = manualMode || fetched;
 
   return (
     <form
@@ -429,18 +463,70 @@ export function Composer({
           </Field>
         </>
       ) : (
-        <div className="relative">
-          <Input
-            placeholder="Paste a link (or skip this for books & anything else)"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setFetched(false);
-            }}
-            inputMode="url"
-          />
-          {fetching && (
-            <Spinner className="absolute right-3 top-1/2 -translate-y-1/2" />
+        <div className="space-y-2">
+          <div className="relative">
+            <Input
+              placeholder="Paste a link — details fill in automatically"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setFetched(false);
+                setPreview(null);
+                setLookupFailed(false);
+              }}
+              inputMode="url"
+            />
+            {fetching && (
+              <Spinner className="absolute right-3 top-1/2 -translate-y-1/2" />
+            )}
+            {preview && (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-card shadow-[3px_3px_0_var(--color-paper-deep)]">
+                <button
+                  type="button"
+                  onClick={() => applyPreview(preview)}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-paper-deep transition-colors cursor-pointer"
+                >
+                  {preview.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={preview.imageUrl}
+                      alt=""
+                      className="size-14 shrink-0 rounded border border-line object-cover"
+                    />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <TypeChip type={preview.suggestedType} />
+                    <span className="block truncate font-medium text-ink">
+                      {preview.title}
+                    </span>
+                    {(preview.creator || preview.siteName) && (
+                      <span className="smallcaps block truncate text-ink-faint">
+                        {[preview.creator, preview.siteName]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    )}
+                  </span>
+                  <span className="smallcaps shrink-0 text-accent">
+                    Use this
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+          {lookupFailed && (
+            <p className="text-sm text-ink-faint">
+              Couldn&rsquo;t fetch details for that link — fill them in below.
+            </p>
+          )}
+          {!showManualFields && !preview && (
+            <button
+              type="button"
+              onClick={() => setManualMode(true)}
+              className="smallcaps text-ink-faint hover:text-ink transition-colors cursor-pointer"
+            >
+              No link? Add it manually
+            </button>
           )}
         </div>
       )}
@@ -598,15 +684,13 @@ export function Composer({
                   )}
                 </div>
               </Field>
-              {(type === "book" || type === "podcast") && (
-                <Field label={type === "book" ? "Author" : "Show / host"}>
-                  <Input
-                    value={creator}
-                    onChange={(e) => setCreator(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </Field>
-              )}
+              <Field label={CREATOR_LABELS[type]}>
+                <Input
+                  value={creator}
+                  onChange={(e) => setCreator(e.target.value)}
+                  placeholder="Optional"
+                />
+              </Field>
             </div>
             {imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   getYouTubeVideoId,
+  goodreadsBookQuery,
   inferTypeFromUrl,
   isPrivateHost,
   parseUnfurl,
+  spotifyCreatorFromDescription,
   youtubeThumbnailUrl,
 } from "./unfurl";
 
@@ -64,6 +66,126 @@ describe("parseUnfurl", () => {
     const r = parseUnfurl(RICH_PAGE, "https://www.youtube.com/watch?v=abc");
     expect(r.suggestedType).toBe("video");
   });
+
+  it("extracts the author from meta name=author", () => {
+    const page = `<html><head>
+      <title>T</title>
+      <meta name="author" content="Jane Doe" />
+    </head></html>`;
+    const r = parseUnfurl(page, "https://example.com");
+    expect(r.creator).toBe("Jane Doe");
+  });
+
+  it("uses article:author only when it is a name, not a profile url", () => {
+    const named = `<html><head><title>T</title>
+      <meta property="article:author" content="John Smith" />
+    </head></html>`;
+    expect(parseUnfurl(named, "https://example.com").creator).toBe(
+      "John Smith"
+    );
+
+    const linked = `<html><head><title>T</title>
+      <meta property="article:author" content="https://example.com/people/js" />
+    </head></html>`;
+    expect(parseUnfurl(linked, "https://example.com").creator).toBeUndefined();
+  });
+
+  it("falls back to JSON-LD author, including @graph and arrays", () => {
+    const page = `<html><head><title>T</title>
+      <script type="application/ld+json">not json</script>
+      <script type="application/ld+json">
+        {"@graph":[{"@type":"WebSite"},{"@type":"NewsArticle","author":[{"name":"Ada Lovelace"},{"name":"Alan Turing"}]}]}
+      </script>
+    </head></html>`;
+    const r = parseUnfurl(page, "https://example.com");
+    expect(r.creator).toBe("Ada Lovelace, Alan Turing");
+  });
+
+  it("reads authors from Highwire citation tags, flipping Last, First", () => {
+    const page = `<html><head><title>Attention Is All You Need</title>
+      <meta name="citation_author" content="Vaswani, Ashish" />
+      <meta name="citation_author" content="Shazeer, Noam" />
+      <meta name="citation_author" content="Parmar, Niki" />
+      <meta name="citation_author" content="Uszkoreit, Jakob" />
+    </head></html>`;
+    const r = parseUnfurl(page, "https://arxiv.org/abs/1706.03762");
+    expect(r.creator).toBe("Ashish Vaswani et al.");
+    expect(r.suggestedType).toBe("paper");
+  });
+
+  it("lists up to three citation authors in full", () => {
+    const page = `<html><head><title>T</title>
+      <meta name="citation_author" content="Curie, Marie" />
+      <meta name="citation_author" content="Pierre Curie" />
+    </head></html>`;
+    const r = parseUnfurl(page, "https://example.com");
+    expect(r.creator).toBe("Marie Curie, Pierre Curie");
+  });
+
+  it("prefers meta name=author over citation tags", () => {
+    const page = `<html><head><title>T</title>
+      <meta name="author" content="Jane Doe" />
+      <meta name="citation_author" content="Smith, John" />
+    </head></html>`;
+    expect(parseUnfurl(page, "https://example.com").creator).toBe("Jane Doe");
+  });
+
+  it("leaves creator undefined when nothing credible exists", () => {
+    const r = parseUnfurl(RICH_PAGE, "https://example.com");
+    expect(r.creator).toBeUndefined();
+  });
+
+  it("pulls the show out of Spotify's og:description boilerplate", () => {
+    const page = `<html><head>
+      <meta property="og:title" content="Neil Mehta - Finding Future S&P 500 Companies" />
+      <meta property="og:description" content="Invest Like the Best with Patrick O'Shaughnessy · Episode" />
+    </head></html>`;
+    const r = parseUnfurl(
+      page,
+      "https://open.spotify.com/episode/4HlsSp3C7o67RhCvX6TUrA"
+    );
+    expect(r.creator).toBe("Invest Like the Best with Patrick O'Shaughnessy");
+    // The boilerplate is metadata, not prose — don't keep it as a description.
+    expect(r.description).toBeUndefined();
+    expect(r.suggestedType).toBe("podcast");
+  });
+
+  it("does not treat ordinary descriptions as Spotify boilerplate", () => {
+    const page = `<html><head>
+      <meta property="og:title" content="T" />
+      <meta property="og:description" content="A real sentence about the episode." />
+    </head></html>`;
+    const r = parseUnfurl(page, "https://open.spotify.com/episode/abc");
+    expect(r.creator).toBeUndefined();
+    expect(r.description).toBe("A real sentence about the episode.");
+  });
+
+  it("ignores the spotify pattern on other hosts", () => {
+    const page = `<html><head>
+      <meta property="og:title" content="T" />
+      <meta property="og:description" content="Someone · Episode" />
+    </head></html>`;
+    const r = parseUnfurl(page, "https://example.com/x");
+    expect(r.creator).toBeUndefined();
+    expect(r.description).toBe("Someone · Episode");
+  });
+});
+
+describe("spotifyCreatorFromDescription", () => {
+  it.each([
+    ["Invest Like the Best with Patrick O'Shaughnessy · Episode", "Invest Like the Best with Patrick O'Shaughnessy"],
+    ["Rick Astley · Whenever You Need Somebody · Song · 1987", "Rick Astley"],
+    ["Acquired · Podcast", "Acquired"],
+  ])("%s -> %s", (desc, expected) => {
+    expect(spotifyCreatorFromDescription(desc)).toBe(expected);
+  });
+
+  it.each([
+    "Just a plain description",
+    "A sentence · with separators · but no labels",
+  ])("returns undefined for %s", (desc) => {
+    expect(spotifyCreatorFromDescription(desc)).toBeUndefined();
+  });
 });
 
 describe("inferTypeFromUrl", () => {
@@ -74,7 +196,7 @@ describe("inferTypeFromUrl", () => {
     ["https://twitter.com/user/status/1", "tweet"],
     ["https://open.spotify.com/episode/abc", "podcast"],
     ["https://podcasts.apple.com/us/podcast/x", "podcast"],
-    ["https://something.substack.com/p/post", "blog"],
+    ["https://something.substack.com/p/post", "article"],
     ["https://arxiv.org/abs/2401.00001", "paper"],
     ["https://www.goodreads.com/book/show/1", "book"],
   ])("%s -> %s", (url, expected) => {
@@ -88,6 +210,26 @@ describe("inferTypeFromUrl", () => {
   it("does not match lookalike domains", () => {
     expect(inferTypeFromUrl("https://notyoutube.com/x")).toBeNull();
     expect(inferTypeFromUrl("https://youtube.com.evil.com/x")).toBeNull();
+  });
+});
+
+describe("goodreadsBookQuery", () => {
+  it.each([
+    ["https://www.goodreads.com/book/show/3735293-clean-code", "clean code"],
+    ["https://www.goodreads.com/book/show/4671.The_Great_Gatsby", "The Great Gatsby"],
+    ["https://www.goodreads.com/it/book/show/4671.The_Great_Gatsby", "The Great Gatsby"],
+    ["https://goodreads.com/book/show/11084145-steve-jobs?ref=nav", "steve jobs"],
+  ])("%s -> %s", (url, expected) => {
+    expect(goodreadsBookQuery(url)).toBe(expected);
+  });
+
+  it.each([
+    "https://www.goodreads.com/book/show/3735293", // bare id, nothing to search
+    "https://www.goodreads.com/author/show/3389.Stephen_King",
+    "https://example.com/book/show/123-some-title",
+    "not a url",
+  ])("returns null for %s", (url) => {
+    expect(goodreadsBookQuery(url)).toBeNull();
   });
 });
 

@@ -91,7 +91,9 @@ async function main() {
       url: "https://www.newyorker.com/magazine/2024/01/01/example",
       title: "The Quiet Profundity of Everyday Routines",
       description: "On the rituals that structure a life.",
+      image_url: "https://picsum.photos/seed/quiet-routines/640/420",
       site_name: "The New Yorker",
+      creator: "Lena Moreau",
       created_by: alice,
     },
     "This completely changed how I think about my mornings. The bit about attention as a finite resource is worth the whole read."
@@ -104,7 +106,10 @@ async function main() {
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       title: "The Art of Code — Dylan Beattie",
       description: "Software as a creative medium.",
+      // What unfurl's id-derived YouTube thumbnail would produce.
+      image_url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
       site_name: "YouTube",
+      creator: "NDC Conferences",
       created_by: bob,
     },
     "Funniest and smartest conference talk I've seen in years. The Rockstar language section killed me."
@@ -117,7 +122,9 @@ async function main() {
       url: "https://open.spotify.com/episode/example",
       title: "Acquired: The Costco Episode",
       description: "How Costco built a cult.",
+      image_url: "https://picsum.photos/seed/acquired-costco/640/640",
       site_name: "Spotify",
+      creator: "Acquired",
       created_by: bob,
     },
     "Three hours about a warehouse club and I was riveted the entire time."
@@ -127,7 +134,7 @@ async function main() {
   await share(
     carol,
     {
-      type: "blog",
+      type: "article",
       url: "https://example.substack.com/p/slow-productivity",
       title: "Slow Productivity Notes",
       site_name: "Substack",
@@ -154,6 +161,8 @@ async function main() {
       title: "The Power Broker",
       creator: "Robert Caro",
       description: "Robert Moses and the fall of New York.",
+      // Open Library cover, same shape lib/book-cover.ts produces.
+      image_url: "https://covers.openlibrary.org/b/id/253659-L.jpg",
     })
     .select("id")
     .single();
