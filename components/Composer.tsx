@@ -44,6 +44,7 @@ export function Composer({ profile }: { profile: AuthorSummary }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const coverAbortRef = useRef<AbortController | null>(null);
 
   // Debounced unfurl whenever the url becomes a plausible link.
   useEffect(() => {
@@ -69,6 +70,11 @@ export function Composer({ profile }: { profile: AuthorSummary }) {
           setDescription(data.description ?? null);
           setImageUrl(data.imageUrl ?? null);
           setSiteName(data.siteName ?? null);
+          if (data.creator) setCreator(data.creator);
+        } else if (data.imageUrl) {
+          // e.g. a YouTube video whose oEmbed lookup failed: the metadata is
+          // unknown but the id-derived thumbnail still works.
+          setImageUrl(data.imageUrl);
         }
       } catch {
         if (!controller.signal.aborted) setFetched(true);
@@ -79,7 +85,37 @@ export function Composer({ profile }: { profile: AuthorSummary }) {
     return () => clearTimeout(timer);
   }, [url]);
 
+  // Manually entered books (no link pasted) get a cover from Open Library,
+  // keyed off whatever title/author the user has typed so far.
+  useEffect(() => {
+    if (type !== "book" || URL_RE.test(url) || title.trim().length < 2) return;
+    const timer = setTimeout(async () => {
+      coverAbortRef.current?.abort();
+      const controller = new AbortController();
+      coverAbortRef.current = controller;
+      try {
+        const res = await fetch("/api/book-cover", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            author: creator.trim() || null,
+          }),
+          signal: controller.signal,
+        });
+        const data: { imageUrl: string | null } = await res.json();
+        if (!controller.signal.aborted) setImageUrl(data.imageUrl);
+      } catch {
+        // Keep whatever preview we already had.
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [type, title, creator, url]);
+
   function reset() {
+    // Don't let in-flight lookups repopulate the cleared form.
+    abortRef.current?.abort();
+    coverAbortRef.current?.abort();
     setExpanded(false);
     setUrl("");
     setFetched(false);

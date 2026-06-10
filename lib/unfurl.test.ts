@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { inferTypeFromUrl, isPrivateHost, parseUnfurl } from "./unfurl";
+import {
+  getYouTubeVideoId,
+  inferTypeFromUrl,
+  isPrivateHost,
+  parseUnfurl,
+  youtubeThumbnailUrl,
+} from "./unfurl";
 
 const RICH_PAGE = `<!doctype html>
 <html><head>
@@ -83,6 +89,39 @@ describe("inferTypeFromUrl", () => {
   it("does not match lookalike domains", () => {
     expect(inferTypeFromUrl("https://notyoutube.com/x")).toBeNull();
     expect(inferTypeFromUrl("https://youtube.com.evil.com/x")).toBeNull();
+  });
+});
+
+describe("getYouTubeVideoId", () => {
+  it.each([
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=42s",
+    "https://youtu.be/dQw4w9WgXcQ?si=abc",
+    "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+    "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    "https://www.youtube.com/live/dQw4w9WgXcQ",
+    "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+  ])("extracts the id from %s", (url) => {
+    expect(getYouTubeVideoId(url)).toBe("dQw4w9WgXcQ");
+  });
+
+  it.each([
+    "https://www.youtube.com/@RickAstleyYT",
+    "https://www.youtube.com/watch?v=too-short",
+    "https://www.youtube.com/playlist?list=PL123",
+    "https://example.com/watch?v=dQw4w9WgXcQ",
+    "https://notyoutube.com/watch?v=dQw4w9WgXcQ",
+    "not a url",
+  ])("returns null for %s", (url) => {
+    expect(getYouTubeVideoId(url)).toBeNull();
+  });
+});
+
+describe("youtubeThumbnailUrl", () => {
+  it("derives the ytimg thumbnail from a video id", () => {
+    expect(youtubeThumbnailUrl("dQw4w9WgXcQ")).toBe(
+      "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+    );
   });
 });
 

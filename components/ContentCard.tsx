@@ -25,7 +25,11 @@ export function ContentCard({ item }: { item: ContentItem }) {
         <img
           src={item.image_url}
           alt=""
-          className="w-24 sm:w-32 shrink-0 object-cover rounded-r-[7px]"
+          className={cn(
+            "shrink-0 object-cover rounded-r-[7px]",
+            // Book covers are portrait; cropping them square loses the title.
+            item.type === "book" ? "w-16 sm:w-20" : "w-24 sm:w-32"
+          )}
         />
       ) : item.type === "book" ? (
         <div
