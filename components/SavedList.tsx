@@ -11,7 +11,6 @@ import { BookmarkIcon } from "@/components/icons";
 const SECTIONS: Array<{ type: ContentType; label: string }> = [
   { type: "book", label: "Books" },
   { type: "article", label: "Articles" },
-  { type: "blog", label: "Blog posts" },
   { type: "paper", label: "Papers" },
   { type: "podcast", label: "Podcasts" },
   { type: "video", label: "Videos" },

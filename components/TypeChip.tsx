@@ -3,7 +3,6 @@ import { cn } from "@/components/ui";
 
 const TYPE_STYLES: Record<ContentType, { dot: string; label: string }> = {
   article: { dot: "bg-accent", label: "Article" },
-  blog: { dot: "bg-accent", label: "Blog" },
   podcast: { dot: "bg-moss", label: "Podcast" },
   video: { dot: "bg-sky", label: "Video" },
   tweet: { dot: "bg-sky", label: "Post" },

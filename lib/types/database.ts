@@ -373,7 +373,6 @@ export type Database = {
     Enums: {
       content_type:
         | "article"
-        | "blog"
         | "podcast"
         | "video"
         | "tweet"
@@ -514,7 +513,6 @@ export const Constants = {
     Enums: {
       content_type: [
         "article",
-        "blog",
         "podcast",
         "video",
         "tweet",
