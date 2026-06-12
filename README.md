@@ -65,9 +65,14 @@ reading The Power Broker with progress posts.
 ## Deploying
 
 1. Create a hosted Supabase project; `supabase link --project-ref <ref>` then
-   `supabase db push` to apply migrations.
-2. Enable the Google provider in Supabase Auth settings and add
+   `supabase db push` to apply migrations (this also provisions the `avatars`
+   storage bucket and its policies — no manual setup).
+2. Google sign-in: create an OAuth client in Google Cloud Console with
+   `https://<ref>.supabase.co/auth/v1/callback` as the authorized redirect URI,
+   paste its client ID/secret into Supabase Auth → Providers → Google, then under
+   Auth → URL Configuration set the Site URL and add
    `https://<your-domain>/auth/callback` to the redirect allow-list.
-3. Deploy to Vercel with the three env vars from `.env.example` (use the hosted
-   project's URL and keys; the service-role key is only needed if you run the
-   seed script against prod — generally don't).
+3. Deploy to Vercel with the app's runtime env vars: `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and (optional) `ANTHROPIC_API_KEY` for link
+   enrichment. `SUPABASE_SERVICE_ROLE_KEY` is seed-script-only — keep it out of
+   prod.
