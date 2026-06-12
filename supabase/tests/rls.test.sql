@@ -6,6 +6,12 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(18);
 
+-- This suite verifies the REAL friend-gating, so disable the temporary
+-- open-friend mode for the duration of this transaction (rolled back at the
+-- end). open_friend_mode() in open_friend_mode.test.sql covers the ON path.
+create or replace function public.open_friend_mode()
+  returns boolean language sql stable as $$ select false $$;
+
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres: bypasses RLS, signup trigger still fires)
 -- alice < bob < carol by uuid, so canonical pairs are written in that order.

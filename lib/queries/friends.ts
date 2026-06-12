@@ -50,6 +50,22 @@ export async function listFriendships(db: DB, me: string): Promise<FriendEntry[]
   );
 }
 
+/**
+ * Whether `me` may currently see `other`'s content. Mirrors the RLS
+ * `are_friends` predicate, so it honors the temporary open-friend mode without
+ * the UI needing to know that mode exists. Falls back to the real
+ * accepted-friendship check once open mode is off.
+ */
+export async function canViewContentOf(
+  db: DB,
+  me: string,
+  other: string
+): Promise<boolean> {
+  const { data, error } = await db.rpc("are_friends", { a: me, b: other });
+  if (error) throw error;
+  return data ?? false;
+}
+
 export async function getFriendship(
   db: DB,
   me: string,

@@ -55,12 +55,17 @@ async function main() {
   const pair = (x: string, y: string) =>
     x < y ? { user_a: x, user_b: y } : { user_a: y, user_b: x };
 
-  // alice <-> bob friends; alice -> carol pending
+  // alice <-> bob friends; alice -> carol pending.
+  // Tolerate rows the auto-friend trigger may have already created when
+  // open_friend_mode() is on (it pre-friends every pair on signup).
   {
-    const { error } = await admin.from("friendships").insert([
-      { ...pair(alice, bob), requester_id: alice, status: "accepted" },
-      { ...pair(alice, carol), requester_id: alice, status: "pending" },
-    ]);
+    const { error } = await admin.from("friendships").upsert(
+      [
+        { ...pair(alice, bob), requester_id: alice, status: "accepted" },
+        { ...pair(alice, carol), requester_id: alice, status: "pending" },
+      ],
+      { onConflict: "user_a,user_b", ignoreDuplicates: true }
+    );
     if (error) throw error;
   }
 

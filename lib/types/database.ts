@@ -369,6 +369,7 @@ export type Database = {
     Functions: {
       are_friends: { Args: { a: string; b: string }; Returns: boolean }
       friend_ids: { Args: { u: string }; Returns: string[] }
+      open_friend_mode: { Args: never; Returns: boolean }
     }
     Enums: {
       content_type:

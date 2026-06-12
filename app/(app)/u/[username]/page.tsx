@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUsername } from "@/lib/queries/profiles";
-import { getFriendship } from "@/lib/queries/friends";
+import { canViewContentOf, getFriendship } from "@/lib/queries/friends";
 import { getFeed } from "@/lib/queries/posts";
 import { listReads } from "@/lib/queries/reads";
 import { Avatar } from "@/components/Avatar";
@@ -25,14 +25,17 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const isMe = profile.id === user.id;
-  const [friendship, page, reads] = await Promise.all([
+  const [friendship, page, reads, canView] = await Promise.all([
     isMe ? Promise.resolve(null) : getFriendship(supabase, user.id, profile.id),
     getFeed(supabase, user.id, { authorId: profile.id }),
     // RLS returns [] unless we're friends (or it's me).
     listReads(supabase, profile.id, "reading"),
+    isMe ? Promise.resolve(true) : canViewContentOf(supabase, user.id, profile.id),
   ]);
 
-  const areFriends = isMe || friendship?.status === "accepted";
+  // Gate content on the actual visibility predicate (which honors open-friend
+  // mode), not the raw friendship row. friendship still drives the button below.
+  const areFriends = isMe || canView;
 
   return (
     <div>
