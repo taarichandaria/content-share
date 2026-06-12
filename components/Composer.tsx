@@ -76,6 +76,94 @@ function ProgressBadge({ progress }: { progress: string | null }) {
   );
 }
 
+// Book autocomplete dropdown: any books the user is currently reading that
+// match the query (offer to continue), followed by Open Library suggestions.
+// Rendered under either the link bar or the Title field.
+function BookOptions({
+  matchingReads,
+  suggestions,
+  highlight,
+  onPickRead,
+  onPickSuggestion,
+}: {
+  matchingReads: CurrentRead[];
+  suggestions: BookSuggestion[];
+  highlight: number;
+  onPickRead: (read: CurrentRead) => void;
+  onPickSuggestion: (suggestion: BookSuggestion) => void;
+}) {
+  return (
+    <ul
+      role="listbox"
+      className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-card shadow-[3px_3px_0_var(--color-paper-deep)]"
+    >
+      {matchingReads.map((r, i) => (
+        <li key={r.id} role="option" aria-selected={highlight === i}>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPickRead(r)}
+            className={cn(
+              "flex w-full items-center gap-3 border-l-2 border-gold bg-gold-soft/40 px-3 py-2 text-left hover:bg-gold-soft transition-colors cursor-pointer",
+              highlight === i && "bg-gold-soft"
+            )}
+          >
+            <CoverThumb
+              title={r.content_item.title}
+              imageUrl={r.content_item.image_url}
+              className="h-10 w-7 text-xs"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">
+                {r.content_item.title}
+              </span>
+              <span className="smallcaps block text-gold">
+                Currently reading
+                {r.latest_progress ? ` · ${r.latest_progress}` : ""}
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+      {suggestions.map((s, i) => {
+        const idx = matchingReads.length + i;
+        return (
+          <li
+            key={`${s.title}-${s.url ?? i}`}
+            role="option"
+            aria-selected={highlight === idx}
+          >
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onPickSuggestion(s)}
+              className={cn(
+                "flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-paper-deep transition-colors cursor-pointer",
+                highlight === idx && "bg-paper-deep"
+              )}
+            >
+              <CoverThumb
+                title={s.title}
+                imageUrl={s.coverUrl}
+                className="h-10 w-7 text-xs"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">
+                  {s.title}
+                </span>
+                <span className="block truncate text-xs text-ink-soft">
+                  {s.author ?? "Unknown author"}
+                  {s.year ? ` · ${s.year}` : ""}
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function Composer({
   profile,
   currentReads = [],
@@ -113,6 +201,41 @@ export function Composer({
   const [continuing, setContinuing] = useState<CurrentRead | null>(null);
   const bookAbortRef = useRef<AbortController | null>(null);
   const skipSearchRef = useRef(false);
+
+  // Details (and the book Title field) appear only once a preview is accepted
+  // or the user opts into manual entry; until then the link box stands alone.
+  const showManualFields = manualMode || fetched;
+  // A bare or half-typed link shouldn't be treated as a book search query.
+  const isUrlInput = URL_RE.test(url) || /^\s*https?:/i.test(url);
+
+  // The active book-search query. In the pristine link bar the typed text
+  // doubles as a book search; once details are open it comes from the Title
+  // field while the type is "book". The two are never active at the same time.
+  const bookSearchQuery = continuing
+    ? ""
+    : showManualFields
+      ? type === "book"
+        ? title.trim()
+        : ""
+      : isUrlInput
+        ? ""
+        : url.trim();
+  const bq = bookSearchQuery.toLowerCase();
+  const matchingReads =
+    bq.length >= 2
+      ? currentReads.filter(
+          (r) =>
+            r.content_item.title.toLowerCase().includes(bq) ||
+            (r.content_item.creator ?? "").toLowerCase().includes(bq)
+        )
+      : [];
+  const optionCount = matchingReads.length + suggestions.length;
+  const dropdownVisible =
+    !continuing && suggestionsOpen && bq.length >= 2 && optionCount > 0;
+  // The same dropdown hangs under either the link bar or the Title field.
+  const barDropdownVisible = dropdownVisible && !showManualFields && !preview;
+  const titleDropdownVisible =
+    dropdownVisible && showManualFields && type === "book";
 
   // Debounced unfurl whenever the url becomes a plausible link.
   useEffect(() => {
@@ -186,14 +309,15 @@ export function Composer({
     return () => clearTimeout(timer);
   }, [type, title, creator, url, continuing]);
 
-  // Debounced book search against /api/books while typing a book title.
+  // Debounced book search against /api/books, driven by whichever field is the
+  // active book query (the link bar before details open, else the Title field).
   useEffect(() => {
-    if (type !== "book" || continuing) return;
+    if (continuing) return;
     if (skipSearchRef.current) {
       skipSearchRef.current = false;
       return;
     }
-    const q = title.trim();
+    const q = bookSearchQuery;
     if (q.length < 2) return;
     const timer = setTimeout(async () => {
       bookAbortRef.current?.abort();
@@ -215,24 +339,7 @@ export function Composer({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [title, type, continuing]);
-
-  const bookQuery = title.trim().toLowerCase();
-  const matchingReads =
-    type === "book" && !continuing && bookQuery.length >= 2
-      ? currentReads.filter(
-          (r) =>
-            r.content_item.title.toLowerCase().includes(bookQuery) ||
-            (r.content_item.creator ?? "").toLowerCase().includes(bookQuery)
-        )
-      : [];
-  const optionCount = matchingReads.length + suggestions.length;
-  const dropdownVisible =
-    type === "book" &&
-    !continuing &&
-    suggestionsOpen &&
-    bookQuery.length >= 2 &&
-    optionCount > 0;
+  }, [bookSearchQuery, continuing]);
 
   function applyPreview(data: UnfurlResult) {
     skipSearchRef.current = true;
@@ -242,16 +349,25 @@ export function Composer({
     setImageUrl(data.imageUrl ?? null);
     setSiteName(data.siteName ?? null);
     if (data.creator) setCreator(data.creator);
+    setSuggestions([]);
+    setSuggestionsOpen(false);
     setPreview(null);
     setFetched(true);
   }
 
-  function pickSuggestion(s: BookSuggestion) {
+  function pickSuggestion(s: BookSuggestion, fromBar = false) {
     skipSearchRef.current = true;
     bookAbortRef.current?.abort();
+    setType("book");
     setTitle(s.title);
     setCreator(s.author ?? "");
     if (s.coverUrl) setImageUrl(s.coverUrl);
+    if (fromBar) {
+      // The bar text was a search query, not a link — drop it and open the
+      // detail fields so the user can add their thoughts.
+      setUrl("");
+      setFetched(true);
+    }
     setSuggestions([]);
     setSuggestionsOpen(false);
     setHighlight(-1);
@@ -272,7 +388,10 @@ export function Composer({
     setProgress("");
   }
 
-  function onTitleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function onBookKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    fromBar: boolean
+  ) {
     if (!dropdownVisible) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -287,7 +406,7 @@ export function Composer({
       } else if (highlight < matchingReads.length) {
         continueRead(matchingReads[highlight]);
       } else {
-        pickSuggestion(suggestions[highlight - matchingReads.length]);
+        pickSuggestion(suggestions[highlight - matchingReads.length], fromBar);
       }
     } else if (e.key === "Escape") {
       setSuggestionsOpen(false);
@@ -399,10 +518,6 @@ export function Composer({
     );
   }
 
-  // Link-first: the form opens with just the link box. Details appear once a
-  // scraped preview is accepted (or the user opts into manual entry).
-  const showManualFields = manualMode || fetched;
-
   return (
     <form
       onSubmit={submit}
@@ -466,17 +581,23 @@ export function Composer({
         <div className="space-y-2">
           <div className="relative">
             <Input
-              placeholder="Paste a link — details fill in automatically"
+              placeholder="Paste a link, or start typing a book title"
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);
                 setFetched(false);
                 setPreview(null);
                 setLookupFailed(false);
+                setSuggestionsOpen(true);
+                setHighlight(-1);
               }}
-              inputMode="url"
+              onKeyDown={(e) => onBookKeyDown(e, true)}
+              onBlur={() => setSuggestionsOpen(false)}
+              role="combobox"
+              aria-expanded={barDropdownVisible}
+              aria-autocomplete="list"
             />
-            {fetching && (
+            {(fetching || (searching && !showManualFields)) && (
               <Spinner className="absolute right-3 top-1/2 -translate-y-1/2" />
             )}
             {preview && (
@@ -513,6 +634,15 @@ export function Composer({
                 </button>
               </div>
             )}
+            {barDropdownVisible && (
+              <BookOptions
+                matchingReads={matchingReads}
+                suggestions={suggestions}
+                highlight={highlight}
+                onPickRead={continueRead}
+                onPickSuggestion={(s) => pickSuggestion(s, true)}
+              />
+            )}
           </div>
           {lookupFailed && (
             <p className="text-sm text-ink-faint">
@@ -522,7 +652,12 @@ export function Composer({
           {!showManualFields && !preview && (
             <button
               type="button"
-              onClick={() => setManualMode(true)}
+              onClick={() => {
+                setManualMode(true);
+                setSuggestionsOpen(false);
+                // A non-link search query shouldn't ride along as the URL.
+                if (!isUrlInput) setUrl("");
+              }}
               className="smallcaps text-ink-faint hover:text-ink transition-colors cursor-pointer"
             >
               No link? Add it manually
@@ -597,90 +732,28 @@ export function Composer({
                       if (type === "book") {
                         setSuggestionsOpen(true);
                         setHighlight(-1);
-                        if (e.target.value.trim().length < 2) setSuggestions([]);
                       }
                     }}
-                    onKeyDown={onTitleKeyDown}
+                    onKeyDown={(e) => onBookKeyDown(e, false)}
                     onBlur={() => setSuggestionsOpen(false)}
                     placeholder={
                       type === "book" ? "Search for a book…" : "What is it called?"
                     }
                     role={type === "book" ? "combobox" : undefined}
-                    aria-expanded={type === "book" ? dropdownVisible : undefined}
+                    aria-expanded={type === "book" ? titleDropdownVisible : undefined}
                     aria-autocomplete={type === "book" ? "list" : undefined}
                   />
                   {searching && (
                     <Spinner className="absolute right-3 top-1/2 -translate-y-1/2" />
                   )}
-                  {dropdownVisible && (
-                    <ul
-                      role="listbox"
-                      className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-card shadow-[3px_3px_0_var(--color-paper-deep)]"
-                    >
-                      {matchingReads.map((r, i) => (
-                        <li key={r.id} role="option" aria-selected={highlight === i}>
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => continueRead(r)}
-                            className={cn(
-                              "flex w-full items-center gap-3 border-l-2 border-gold bg-gold-soft/40 px-3 py-2 text-left hover:bg-gold-soft transition-colors cursor-pointer",
-                              highlight === i && "bg-gold-soft"
-                            )}
-                          >
-                            <CoverThumb
-                              title={r.content_item.title}
-                              imageUrl={r.content_item.image_url}
-                              className="h-10 w-7 text-xs"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-ink">
-                                {r.content_item.title}
-                              </span>
-                              <span className="smallcaps block text-gold">
-                                Currently reading
-                                {r.latest_progress ? ` · ${r.latest_progress}` : ""}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                      {suggestions.map((s, i) => {
-                        const idx = matchingReads.length + i;
-                        return (
-                          <li
-                            key={`${s.title}-${s.url ?? i}`}
-                            role="option"
-                            aria-selected={highlight === idx}
-                          >
-                            <button
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => pickSuggestion(s)}
-                              className={cn(
-                                "flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-paper-deep transition-colors cursor-pointer",
-                                highlight === idx && "bg-paper-deep"
-                              )}
-                            >
-                              <CoverThumb
-                                title={s.title}
-                                imageUrl={s.coverUrl}
-                                className="h-10 w-7 text-xs"
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium text-ink">
-                                  {s.title}
-                                </span>
-                                <span className="block truncate text-xs text-ink-soft">
-                                  {s.author ?? "Unknown author"}
-                                  {s.year ? ` · ${s.year}` : ""}
-                                </span>
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  {titleDropdownVisible && (
+                    <BookOptions
+                      matchingReads={matchingReads}
+                      suggestions={suggestions}
+                      highlight={highlight}
+                      onPickRead={continueRead}
+                      onPickSuggestion={(s) => pickSuggestion(s, false)}
+                    />
                   )}
                 </div>
               </Field>
